@@ -1,0 +1,4 @@
+split,images,objets,objets/image (moy.),objets/image (max),images sans objet
+train,15052,36545,2.43,39,0
+val,2151,5132,2.39,22,0
+test,4300,10413,2.42,25,0

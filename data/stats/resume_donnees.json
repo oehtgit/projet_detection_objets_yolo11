@@ -1,0 +1,17 @@
+{
+  "integrite": "aucun problème détecté",
+  "difficult_ecartes": {},
+  "tailles_images_px": {
+    "largeur_mediane": 500,
+    "hauteur_mediane": 375,
+    "largeur_max": 500,
+    "hauteur_max": 500
+  },
+  "desequilibre_train": {
+    "classe_max": "person",
+    "n_max": 12451,
+    "classe_min": "dining table",
+    "n_min": 721,
+    "rapport": 17.3
+  }
+}
