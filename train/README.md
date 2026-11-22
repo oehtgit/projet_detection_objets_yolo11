@@ -197,7 +197,17 @@ d'entraînement et se dégrade sur les autres : c'est la signature du surapprent
 au modèle les objets à d'autres positions, tailles et couleurs (invariance, Cours 3
 p.12-13 ; Fiche 04).
 
+![Comparaison des expériences](figures/comparaison_map.png)
+
 ### Meilleur modèle
+
+![Losses du meilleur run](figures/losses_epochs_20_complets.png)
+
+Les losses de validation du meilleur run montent pendant le warmup (epochs 1 à 6), puis
+baissent régulièrement jusqu'à l'epoch 20 : il n'y a **pas de surapprentissage** (Cours 3
+p.107). La chute brutale des losses d'entraînement à l'epoch 11 correspond à la
+désactivation de mosaic : les images d'entraînement deviennent plus simples, sans que les
+losses de validation changent brusquement.
 
 **`epochs_20_complets`, epoch 20** : précision 0,822, rappel 0,772, mAP@0.5 = 0,842,
 mAP@0.5:0.95 = 0,666 en validation, soit **+3,5 points de mAP@0.5 et +3,2 points de

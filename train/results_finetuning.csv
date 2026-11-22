@@ -1,0 +1,7 @@
+experience,freeze,optimizer,lr0,imgsz,batch,epochs_prevus,epochs_effectues,meilleur_epoch,precision,rappel,mAP50,mAP50-95
+baseline,aucun,SGD,0.01,640,16,20,6,1,0.7174,0.6137,0.6778,0.4842
+epochs_20_complets,aucun,SGD,0.001,640,16,20,20,20,0.8234,0.773,0.8417,0.6662
+freeze_backbone,10,SGD,0.001,640,16,20,6,1,0.8088,0.7601,0.8318,0.6579
+imgsz_416,aucun,SGD,0.001,416,16,20,6,1,0.7912,0.7152,0.7931,0.622
+lr_faible,aucun,SGD,0.001,640,16,20,6,1,0.8146,0.7544,0.8299,0.6546
+sans_augmentation,aucun,SGD,0.001,640,16,20,6,1,0.8096,0.7503,0.8328,0.657
