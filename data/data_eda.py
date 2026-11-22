@@ -1,16 +1,17 @@
 """
-Partie DONNÉES (Amina) — contrôle qualité et analyse exploratoire de Pascal VOC au format YOLO.
+Contrôle qualité et statistiques sur les données VOC (format YOLO).
 
-Ce que fait le script :
-  1. Vérifie l'intégrité : chaque image a son label, coordonnées dans [0, 1], classes valides.
-  2. Compte les annotations 'difficult' écartées lors de la conversion XML -> YOLO.
-  3. Statistiques par split : images, objets, objets par image, images sans objet.
-  4. Répartition des classes (déséquilibre).
-  5. Tailles des boîtes (petits / moyens / grands objets, seuils COCO en pixels²) et formes.
-  6. Tailles des images d'origine.
-Sorties : results/data/*.csv, results/data/*.png, results/data/resume_donnees.json
+On vérifie :
+  - que chaque image a son fichier de labels
+  - que les coordonnées sont entre 0 et 1 et les classes valides
+On calcule :
+  - images et objets par ensemble (train / val / test)
+  - nombre d'objets par classe
+  - tailles des objets (petit / moyen / grand, seuils COCO)
+  - tailles des images
+Les résultats vont dans data/stats/.
 
-Usage :
+Exemple :
     python data/data_eda.py --root /content/datasets/VOC
 """
 import argparse
@@ -31,6 +32,7 @@ SPLITS = {"train": ["train"], "val": ["val"], "test": ["test"]}
 
 
 def read_split(root: Path, sub: str, names: dict) -> pd.DataFrame:
+    """Lit les labels d'un ensemble et note les problèmes trouvés."""
     rows, problems = [], Counter()
     img_dir, lbl_dir = root / "images" / sub, root / "labels" / sub
     for img in sorted(img_dir.glob("*.jpg")):
@@ -55,7 +57,7 @@ def read_split(root: Path, sub: str, names: dict) -> pd.DataFrame:
 
 
 def count_difficult(root: Path) -> dict:
-    """Objets marqués 'difficult' dans les XML d'origine (non convertis en labels YOLO)."""
+    """Compte les objets "difficult" dans les XML d'origine (s'ils sont encore là)."""
     out = {}
     for year in ("2007", "2012"):
         ann = root / "images" / "VOCdevkit" / f"VOC{year}" / "Annotations"
@@ -96,7 +98,7 @@ def main():
     obj["taille"] = pd.cut(obj["aire"], [0, 32**2, 96**2, np.inf], labels=["petit", "moyen", "grand"])
     obj["ratio_l_h"] = obj["w_px"] / obj["h_px"]
 
-    # 1. Résumé par split
+    # 1. résumé par ensemble
     imgs = df.drop_duplicates(["split_dir", "image"])
     per_img = obj.groupby(["split", "split_dir", "image"]).size()
     summary = []
@@ -110,20 +112,20 @@ def main():
     summary = pd.DataFrame(summary)
     summary.to_csv(out / "resume_splits.csv", index=False)
 
-    # 2. Classes
+    # 2. objets par classe
     cls_tab = obj.pivot_table(index="classe", columns="split", values="cls", aggfunc="size", fill_value=0)
     cls_tab = cls_tab[["train", "val", "test"]].sort_values("train", ascending=False)
     cls_tab["part train (%)"] = (100 * cls_tab["train"] / cls_tab["train"].sum()).round(1)
     cls_tab.to_csv(out / "objets_par_classe.csv")
 
-    # 3. Tailles
+    # 3. tailles des objets
     size_tab = (obj.groupby("split")["taille"].value_counts(normalize=True).unstack()[["petit", "moyen", "grand"]] * 100).round(1)
     size_tab.to_csv(out / "tailles_boites_pct.csv")
     size_cls = (obj[obj.split == "train"].groupby("classe")["taille"].value_counts(normalize=True)
                 .unstack()[["petit", "moyen", "grand"]] * 100).round(1).sort_values("petit", ascending=False)
     size_cls.to_csv(out / "tailles_par_classe_train_pct.csv")
 
-    # Figures
+    # graphiques
     fig, ax = plt.subplots(figsize=(8, 6))
     cls_tab[["train", "val", "test"]].iloc[::-1].plot.barh(ax=ax, width=0.8)
     ax.set_xlabel("nombre d'objets"); ax.set_title("Pascal VOC : objets par classe et par split")

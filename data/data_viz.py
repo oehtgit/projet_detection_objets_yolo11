@@ -1,4 +1,9 @@
-"""Figures pédagogiques de la partie Données (Pascal VOC au format YOLO)."""
+"""
+Graphiques sur les données VOC (format YOLO). Les figures vont dans data/figures/.
+
+Exemple :
+    python data/data_viz.py --root /content/datasets/VOC
+"""
 import argparse
 from pathlib import Path
 
@@ -11,6 +16,7 @@ import pandas as pd
 import yaml
 from PIL import Image
 
+# couleurs des graphiques
 INK, INK2, GRID = "#0b0b0b", "#52514e", "#e4e3df"
 SPLITC = {"train": "#2a78d6", "val": "#eb6834", "test": "#1baf7a"}
 SPLITS = {"train": ["train"], "val": ["val"], "test": ["test"]}
@@ -21,6 +27,7 @@ plt.rcParams.update({"font.family": "DejaVu Sans", "font.size": 10, "axes.edgeco
 
 
 def load(root, names):
+    """Lit tous les labels : une ligne par objet."""
     rows = []
     for split, subs in SPLITS.items():
         for sub in subs:
@@ -39,6 +46,7 @@ def load(root, names):
 
 
 def draw_boxes(ax, img_path, objs, title=None):
+    """Affiche une image avec ses boîtes et le nom des classes."""
     im = Image.open(img_path); W, H = im.size
     ax.imshow(im); ax.axis("off")
     for _, o in objs.iterrows():
@@ -119,7 +127,7 @@ def main():
     ax.set_title(f"Découpage aléatoire stratifié des {imgs.sum():,} images : 70 / 10 / 20 (graine 0)".replace(",", " "))
     plt.tight_layout(); plt.savefig(out / "fig_split.png", dpi=150); plt.close()
 
-    # 4. représentativité : part de chaque classe dans chaque split
+    # 4. part de chaque classe dans chaque ensemble
     share = (d.groupby(["split", "cls"]).size() / d.groupby("split").size()).unstack(0)[list(SPLITS)] * 100
     share = share.sort_values("train")
     fig, ax = plt.subplots(figsize=(8, 7))
@@ -155,7 +163,7 @@ def main():
     ax.set_title(f"{100 * (per[per.split == 'train'].n == 1).mean():.0f} % des images n'ont qu'un seul objet ; moyenne {per[per.split=='train'].n.mean():.1f}")
     plt.tight_layout(); plt.savefig(out / "fig_objets_par_image.png", dpi=150); plt.close()
 
-    # 7. tailles par split + par classe
+    # 7. tailles des objets, par ensemble et par classe
     sz = (d.groupby("split").taille.value_counts(normalize=True).unstack()[["petit", "moyen", "grand"]] * 100).reindex(list(SPLITS))
     szc = (d[d.split == "train"].groupby("cls").taille.value_counts(normalize=True).unstack()[["petit", "moyen", "grand"]] * 100).sort_values("petit")
     fig, axs = plt.subplots(1, 2, figsize=(11, 5.6), gridspec_kw={"width_ratios": [1, 1.6]})
@@ -183,7 +191,7 @@ def main():
     ax.set_title("Toutes les images font au plus 500 px : YOLO les agrandit")
     plt.tight_layout(); plt.savefig(out / "fig_taille_images.png", dpi=150); plt.close()
 
-    # chiffres pour le texte
+    # quelques chiffres à afficher
     print(imgs.to_dict(), objs.to_dict())
     print("1 objet:", round(100 * (per[per.split == 'train'].n == 1).mean(), 1), "%")
     print(sz.round(1).to_string())

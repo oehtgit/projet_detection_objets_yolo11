@@ -1,27 +1,20 @@
 """
-Partie DONNÉES (Amina) — préparation de Pascal VOC pour YOLO.
+Préparation des données Pascal VOC pour YOLO.
 
-Deux modes :
-  A) --drive-id <ID>  : télécharge le zip DÉJÀ PRÊT depuis le Google Drive partagé (rapide).
-  B) sinon (ou si A échoue) : télécharge les archives officielles et fait toute la préparation.
+Étapes :
+  1. télécharger les 3 archives VOC et les décompresser
+  2. lire les listes officielles : 21 503 images annotées (VOC2007 + VOC2012)
+  3. convertir chaque XML en label YOLO (on enlève les objets "difficult")
+  4. découper en 70 % train / 10 % val / 20 % test (stratifié, graine fixe)
+  5. écrire data/data.yaml
 
-Préparation (mode B), étape par étape :
-  1. Téléchargement des 3 archives VOC (2007 trainval, 2007 test, 2012 trainval) et décompression.
-  2. Lecture des listes officielles ImageSets/Main/{train,val,test}.txt : elles donnent les
-     21 503 images annotées pour la détection (VOC2007 + VOC2012).
-  3. Pour chaque image : lecture du XML, on écarte les objets 'difficult', conversion de chaque
-     boîte (xmin, ymin, xmax, ymax en pixels) en format YOLO normalisé (x_centre, y_centre, w, h).
-  4. Découpage 70 % train / 10 % val / 20 % test, aléatoire STRATIFIÉ (graine fixe) :
-     chaque image est rangée selon la classe la plus rare qu'elle contient, et chaque groupe est
-     découpé 70/10/20, pour que les 3 ensembles aient les mêmes proportions de classes.
-     Écriture : images/<split>/xxx.jpg et labels/<split>/xxx.txt (une ligne par objet).
-     (--split officiel garde l'ancien découpage officiel de VOC.)
-  5. Écriture du fichier de configuration du dataset (data/data.yaml).
+Avec --drive-id, on récupère directement le zip déjà prêt sur le Drive.
+Si ça ne marche pas, on refait toute la préparation.
 
-Usage (Colab) :
-    python data/prepare_data.py --out /content/datasets/VOC                    # mode B
-    python data/prepare_data.py --out /content/datasets/VOC --drive-id <ID>    # mode A, repli sur B
-    python data/prepare_data.py --out /content/datasets/VOC --zip              # B + crée VOC_pret.zip
+Exemples (Colab) :
+    python data/prepare_data.py --out /content/datasets/VOC
+    python data/prepare_data.py --out /content/datasets/VOC --drive-id <ID>
+    python data/prepare_data.py --out /content/datasets/VOC --zip
 """
 import argparse
 import random
@@ -38,24 +31,24 @@ import yaml
 URL = "https://ultralytics.com/assets/"
 ARCHIVES = ["VOCtrainval_06-Nov-2007.zip", "VOCtest_06-Nov-2007.zip", "VOCtrainval_11-May-2012.zip"]
 
-# Ordre officiel des 20 classes VOC (noms tels qu'écrits dans les XML)
+# Les 20 classes VOC, dans l'ordre officiel (indice = position dans la liste)
 VOC_CLASSES = ["aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", "chair", "cow",
                "diningtable", "dog", "horse", "motorbike", "person", "pottedplant", "sheep", "sofa",
                "train", "tvmonitor"]
-# Noms écrits dans le .yaml : orthographe COCO pour 6 classes, afin que le fine-tuning réutilise
-# la tête de classification COCO (Ultralytics associe les classes par leur nom).
+# 6 classes n'ont pas le même nom dans COCO. On garde le nom COCO pour que
+# le fine-tuning réutilise ce que le modèle a déjà appris.
 COCO_SPELLING = {"aeroplane": "airplane", "diningtable": "dining table", "motorbike": "motorcycle",
                  "pottedplant": "potted plant", "sofa": "couch", "tvmonitor": "tv"}
 
-# (année, liste officielle) -> dossier de sortie
+# Les 5 listes officielles de VOC : (année, liste, nom)
 SPLITS = [("2012", "train", "train2012"), ("2012", "val", "val2012"),
           ("2007", "train", "train2007"), ("2007", "val", "val2007"), ("2007", "test", "test2007")]
 
 
-# ---------------------------------------------------------------- étape 1 : téléchargement
+# ----- Étape 1 : téléchargement
 def download_official(raw: Path):
     raw.mkdir(parents=True, exist_ok=True)
-    # fichier présent si l'archive a déjà été décompressée (évite de retélécharger)
+    # si ce fichier existe, l'archive est déjà décompressée
     marker = {"VOCtrainval_06-Nov-2007.zip": "VOCdevkit/VOC2007/ImageSets/Main/train.txt",
               "VOCtest_06-Nov-2007.zip": "VOCdevkit/VOC2007/ImageSets/Main/test.txt",
               "VOCtrainval_11-May-2012.zip": "VOCdevkit/VOC2012/ImageSets/Main/train.txt"}
@@ -72,9 +65,9 @@ def download_official(raw: Path):
         z.unlink()
 
 
-# ---------------------------------------------------------------- étape 3 : conversion
+# ----- Étape 3 : conversion XML -> YOLO
 def convert_annotation(xml_path: Path):
-    """Retourne la liste des lignes YOLO 'classe xc yc w h' (objets 'difficult' exclus)."""
+    """Lit un XML et renvoie les lignes YOLO : classe xc yc w h."""
     root = ET.parse(xml_path).getroot()
     W = int(root.find("size/width").text)
     H = int(root.find("size/height").text)
@@ -87,7 +80,7 @@ def convert_annotation(xml_path: Path):
             continue
         b = obj.find("bndbox")
         xmin, ymin, xmax, ymax = (float(b.find(k).text) for k in ("xmin", "ymin", "xmax", "ymax"))
-        # VOC numérote les pixels à partir de 1 -> on retire 1 au centre
+        # VOC compte les pixels à partir de 1, d'où le -1
         xc = ((xmin + xmax) / 2 - 1) / W
         yc = ((ymin + ymax) / 2 - 1) / H
         w = (xmax - xmin) / W
@@ -96,20 +89,16 @@ def convert_annotation(xml_path: Path):
     return lines, n_difficult
 
 
-# ---------------------------------------------------------------- étape 4 : découpage
+# ----- Étape 4 : découpage
 def stratified_split(items, ratios=(0.7, 0.1, 0.2), seed=0):
-    """items : liste de (identifiant, classes présentes). Retourne {identifiant: 'train'|'val'|'test'}.
-
-    Stratification simple pour la détection (plusieurs classes par image) : on range chaque image
-    dans le groupe de la classe la PLUS RARE qu'elle contient, puis on découpe chaque groupe 70/10/20.
-    Les classes rares sont ainsi présentes dans les 3 ensembles en bonne proportion.
-    """
+    """Découpe stratifié : chaque image va dans le groupe de sa classe la plus rare,
+    puis chaque groupe est coupé en 70/10/20. Renvoie {image: 'train', 'val' ou 'test'}."""
     freq = Counter(c for _, cls in items for c in set(cls))          # nb d'images par classe
     groups = {}
     for i, cls in items:
-        key = min(set(cls), key=lambda c: freq[c]) if cls else -1     # -1 : image sans objet
+        key = min(set(cls), key=lambda c: freq[c]) if cls else -1     # classe la plus rare
         groups.setdefault(key, []).append(i)
-    rng = random.Random(seed)                                          # graine fixe = reproductible
+    rng = random.Random(seed)                                          # même graine = même découpage
     assign = {}
     for key in sorted(groups):
         ids = sorted(groups[key])
@@ -121,11 +110,11 @@ def stratified_split(items, ratios=(0.7, 0.1, 0.2), seed=0):
     return assign
 
 
-# ---------------------------------------------------------------- étapes 2 à 4
+# ----- Étapes 2 à 4 : lire, convertir, découper, ranger
 def build_yolo(raw: Path, out: Path, move: bool = True, mode: str = "aleatoire",
                ratios=(0.7, 0.1, 0.2), seed: int = 0):
-    # 2-3. lire toutes les images annotées et convertir leurs annotations
-    data = []                        # (identifiant, chemin de l'image, lignes YOLO, dossier officiel)
+    # lire et convertir toutes les images
+    data = []                        # (id, image, lignes YOLO, liste d'origine)
     n_diff = 0
     for year, liste, sub in SPLITS:
         dev = raw / "VOCdevkit" / f"VOC{year}"
@@ -135,7 +124,7 @@ def build_yolo(raw: Path, out: Path, move: bool = True, mode: str = "aleatoire",
             n_diff += nd
     print(f"[2-3] {len(data)} images, {sum(len(d[2]) for d in data)} objets, {n_diff} 'difficult' écartés")
 
-    # 4. découpage
+    # découpage (officiel ou 70/10/20)
     if mode == "officiel":
         official = {"train2012": "train", "val2012": "train", "train2007": "train",
                     "val2007": "val", "test2007": "test"}
@@ -144,7 +133,7 @@ def build_yolo(raw: Path, out: Path, move: bool = True, mode: str = "aleatoire",
         items = [(i, [int(l.split()[0]) for l in lines]) for i, _, lines, _ in data]
         assign = stratified_split(items, ratios, seed)
 
-    # 4bis. écriture
+    # écriture des images et des labels
     total = {}
     for i, src, lines, _ in data:
         sp = assign[i]
@@ -164,7 +153,7 @@ def build_yolo(raw: Path, out: Path, move: bool = True, mode: str = "aleatoire",
     return total
 
 
-# ---------------------------------------------------------------- étape 5 : configuration
+# ----- Étape 5 : fichier data.yaml
 def write_yaml(out: Path, yaml_path: Path):
     cfg = {
         "path": str(out),
@@ -175,13 +164,13 @@ def write_yaml(out: Path, yaml_path: Path):
     }
     yaml_path.parent.mkdir(parents=True, exist_ok=True)
     yaml_path.write_text(
-        "# Pascal VOC au format YOLO — généré par src/prepare_data.py\n"
-        "# découpage 70/10/20 stratifié (graine 0) | val : choix de best.pt | test : score final\n"
+        "# Pascal VOC au format YOLO, généré par data/prepare_data.py\n"
+        "# découpage 70/10/20 stratifié (graine 0)\n"
         + yaml.safe_dump(cfg, sort_keys=False, allow_unicode=True))
     print(f"[5] configuration écrite : {yaml_path}")
 
 
-# ---------------------------------------------------------------- mode A : Drive
+# ----- Récupération du zip sur le Drive
 def from_drive(file_id: str, out: Path) -> bool:
     try:
         subprocess.run(["pip", "install", "-q", "gdown"], check=True)
@@ -194,7 +183,7 @@ def from_drive(file_id: str, out: Path) -> bool:
         ok = (out / "labels" / "test").exists()
         print("[A] données récupérées depuis le Drive" if ok else "[A] zip incomplet")
         return ok
-    except Exception as e:  # quota Google, fichier supprimé, réseau...
+    except Exception as e:  # quota Google, fichier supprimé, pas de réseau
         print(f"[A] échec du téléchargement Drive ({e}) -> repli sur la source officielle")
         return False
 
@@ -202,15 +191,15 @@ def from_drive(file_id: str, out: Path) -> bool:
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="/content/datasets/VOC")
-    ap.add_argument("--raw", default=None, help="dossier des archives brutes (défaut : <out>_brut)")
-    ap.add_argument("--drive-id", default=None, help="ID Google Drive du zip VOC_pret.zip")
+    ap.add_argument("--raw", default=None, help="dossier des archives (par défaut : <out>_brut)")
+    ap.add_argument("--drive-id", default=None, help="ID du zip sur Google Drive")
     ap.add_argument("--yaml", default="data/data.yaml")
-    ap.add_argument("--zip", action="store_true", help="crée VOC_pret.zip à côté du dossier de sortie")
+    ap.add_argument("--zip", action="store_true", help="crée aussi un zip des données")
     ap.add_argument("--split", default="aleatoire", choices=["aleatoire", "officiel"],
-                    help="aleatoire = 70/10/20 stratifié (défaut) ; officiel = découpage officiel VOC")
+                    help="aleatoire (70/10/20) ou officiel (découpage VOC)")
     ap.add_argument("--ratios", type=float, nargs=3, default=[0.7, 0.1, 0.2], help="train val test")
-    ap.add_argument("--seed", type=int, default=0, help="graine du tirage aléatoire")
-    ap.add_argument("--keep-raw", action="store_true", help="copier au lieu de déplacer les images")
+    ap.add_argument("--seed", type=int, default=0, help="graine du hasard")
+    ap.add_argument("--keep-raw", action="store_true", help="copier les images au lieu de les déplacer")
     a = ap.parse_args()
     out = Path(a.out).resolve()
     raw = Path(a.raw).resolve() if a.raw else out.parent / (out.name + "_brut")

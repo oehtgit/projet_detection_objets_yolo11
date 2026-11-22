@@ -1,5 +1,5 @@
-# Pascal VOC au format YOLO — généré par data/prepare_data.py
-# découpage 70/10/20 stratifié (graine 0) | val : choix de best.pt | test : score final
+# Pascal VOC au format YOLO, généré par data/prepare_data.py
+# découpage 70/10/20 stratifié (graine 0)
 path: /content/datasets/VOC
 train: images/train
 val: images/val

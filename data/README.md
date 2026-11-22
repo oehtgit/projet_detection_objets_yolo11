@@ -27,7 +27,7 @@ pip install ultralytics
 # préparation complète : télécharge VOC (~2,8 Go), convertit, découpe -> /content/datasets/VOC + data/data.yaml
 python data/prepare_data.py --out /content/datasets/VOC
 # ou récupération du zip déjà prêt sur Google Drive (repli automatique sur la préparation complète)
-python data/prepare_data.py --out /content/datasets/VOC --drive-id <ID_DU_ZIP>
+python data/prepare_data.py --out /content/datasets/VOC --drive-id 1JD_19qsvIUdjzPuSI2k6zhK-OIr2wMbs
 # contrôle qualité, statistiques et figures
 python data/data_eda.py
 python data/data_viz.py
@@ -36,6 +36,21 @@ python data/baseline_zeroshot.py --device 0
 ```
 
 Puis l'entraînement : `python train/train.py --data data/data.yaml`.
+
+### Récupérer directement les données prêtes (le plus rapide)
+
+Le zip déjà préparé (70 / 10 / 20, 2,2 Go) est sur Google Drive :
+[VOC_pret_70_10_20.zip](https://drive.google.com/file/d/1JD_19qsvIUdjzPuSI2k6zhK-OIr2wMbs/view?usp=sharing).
+Dans Colab :
+
+```bash
+pip install -q gdown
+mkdir -p /content/datasets
+gdown 1JD_19qsvIUdjzPuSI2k6zhK-OIr2wMbs -O /content/datasets/VOC_pret.zip
+cd /content/datasets && unzip -q VOC_pret.zip && rm VOC_pret.zip
+```
+
+Les données sont alors dans `/content/datasets/VOC`, comme l'attend `data/data.yaml`.
 
 Important : les données doivent rester sur le disque local de Colab (`/content`), jamais
 directement sur Google Drive (des milliers de petits fichiers y sont très lents).

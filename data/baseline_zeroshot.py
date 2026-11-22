@@ -1,18 +1,12 @@
 """
-Évaluation "AVANT adaptation" : YOLO11n pré-entraîné sur COCO, appliqué tel quel (zero-shot)
-au jeu de test Pascal VOC 2007.
+Baseline : YOLO11n pré-entraîné sur COCO, testé tel quel (sans adaptation) sur notre jeu de test.
 
-Problème : le modèle COCO prédit 80 classes avec des indices COCO, alors que les labels VOC
-utilisent 20 classes avec d'autres indices. Lancer directement `model.val(data="VOC.yaml")`
-comparerait des indices incohérents -> mAP fausse.
+Problème : COCO a 80 classes et VOC 20, avec des numéros différents.
+Si on lance model.val() directement, les numéros ne correspondent pas et la mAP est fausse.
+Solution : on renumérote les labels VOC avec les numéros COCO, puis on évalue normalement.
+Les prédictions des classes COCO qui ne sont pas dans VOC sont ignorées.
 
-Solution : on réécrit les labels VOC dans l'espace des indices COCO (les 20 classes VOC existent
-toutes dans COCO, parfois sous un autre nom), puis on évalue avec EXACTEMENT le même code de
-métrique Ultralytics que pour le modèle fine-tuné. Ultralytics ne calcule l'AP que sur les
-classes présentes dans la vérité terrain : les prédictions des 60 classes COCO absentes de VOC
-(tasse, téléphone...) sont donc ignorées, et la mAP est une moyenne sur les 20 classes VOC.
-
-Usage :
+Exemple :
     python data/baseline_zeroshot.py --model yolo11n.pt --data data/data.yaml --split test
 """
 import argparse
@@ -25,7 +19,7 @@ import yaml
 from ultralytics import YOLO
 from ultralytics.data.utils import check_det_dataset
 
-# Noms VOC -> noms COCO quand ils diffèrent
+# noms VOC -> noms COCO (quand ils sont différents)
 VOC2COCO_ALIASES = {
     "aeroplane": "airplane",
     "diningtable": "dining table",
@@ -37,7 +31,7 @@ VOC2COCO_ALIASES = {
 
 
 def build_mapping(voc_names: dict, coco_names: dict) -> dict:
-    """Retourne {indice_VOC: indice_COCO}. Lève une erreur si une classe ne se mappe pas."""
+    """Renvoie {numéro VOC: numéro COCO} pour les 20 classes."""
     coco_inv = {name: idx for idx, name in coco_names.items()}
     mapping = {}
     for i, name in voc_names.items():
@@ -45,14 +39,13 @@ def build_mapping(voc_names: dict, coco_names: dict) -> dict:
         if target not in coco_inv:
             raise KeyError(f"Classe VOC '{name}' introuvable dans COCO (cherché '{target}')")
         mapping[int(i)] = coco_inv[target]
-    assert len(set(mapping.values())) == len(mapping), "Mapping non injectif"
+    assert len(set(mapping.values())) == len(mapping), "deux classes VOC sur la même classe COCO"
     return mapping
 
 
 def link_or_copy(src: Path, dst: Path):
-    """Lien physique image par image (pas de copie disque), repli sur une copie.
-    PAS de lien symbolique de dossier : Ultralytics fait Path.resolve() sur les chemins,
-    il suivrait le lien et relirait les labels VOC d'origine au lieu des labels remappés."""
+    """Lie chaque image au nouveau dossier (pas de copie), sinon on copie.
+    Pas de lien de dossier : Ultralytics le suivrait et relirait les anciens labels."""
     dst.mkdir(parents=True, exist_ok=True)
     for f in src.iterdir():
         if not f.is_file():
@@ -67,7 +60,7 @@ def link_or_copy(src: Path, dst: Path):
 
 
 def remap_split(data: dict, mapping: dict, coco_names: dict, out_root: Path, split: str = "val") -> Path:
-    """Crée un dataset 'VOC avec indices COCO' (mêmes images, labels réindexés)."""
+    """Crée une copie du jeu avec les labels renumérotés en classes COCO."""
     key = split if data.get(split) else "val"
     print(f"[remap] split évalué : {key}")
     val_dirs = data[key] if isinstance(data[key], list) else [data[key]]
@@ -107,8 +100,8 @@ def remap_split(data: dict, mapping: dict, coco_names: dict, out_root: Path, spl
 
 
 def ensure_voc(data_arg: str):
-    """VOC_split.yaml n'a pas de script de téléchargement : on passe d'abord par VOC.yaml."""
-    if Path(data_arg).name == "VOC_split.yaml":   # ancien nom ; data/data.yaml n'en a pas besoin
+    """Ancien fichier VOC_split.yaml : télécharge VOC avant (inutile avec data/data.yaml)."""
+    if Path(data_arg).name == "VOC_split.yaml":
         check_det_dataset("VOC.yaml")
 
 
@@ -138,7 +131,7 @@ def main():
                         device=args.device, split="val", plots=True,
                         project=str(Path.cwd() / "runs" / "val"), name="baseline_zeroshot", exist_ok=True)
 
-    # Résultats par classe, renommés avec les noms VOC
+    # résultats par classe, avec les noms VOC
     coco2voc = {v: voc_names[k] for k, v in mapping.items()}
     per_class = {}
     for j, c in enumerate(metrics.box.ap_class_index):
