@@ -143,20 +143,91 @@ hypothèse est que le gain vient surtout de l'adaptation aux conventions d'annot
 Pascal VOC (ce qui est annoté, et comment sont tracées les boîtes) plutôt que de
 l'apprentissage de nouveaux objets.
 
-### Étape 2 : autres hyperparamètres
+### Étape 2 : autres hyperparamètres (à partir de `lr_faible`)
 
-_En cours : `freeze_backbone`, `imgsz_416`, `sans_augmentation`, `epochs_20_complets`._
+Meilleur epoch de chaque run :
+
+| Expérience | Epochs faites | Meilleur epoch | Précision | Rappel | mAP@0.5 | mAP@0.5:0.95 | Durée d'une epoch |
+|---|---|---|---|---|---|---|---|
+| Sans fine-tuning (Personne 2) | – | – | 0,785 | 0,756 | 0,807 | 0,634 | – |
+| `lr_faible` (référence) | 6 | 1 | 0,815 | 0,754 | 0,829 | 0,655 | 4 min 00 |
+| `freeze_backbone` | 6 | 1 | 0,809 | 0,760 | 0,832 | 0,658 | 3 min 55 |
+| `imgsz_416` | 6 | 1 | 0,791 | 0,715 | 0,793 | 0,622 | 2 min 50 |
+| `sans_augmentation` | 6 | 1 | 0,809 | 0,751 | 0,833 | 0,657 | 3 min 15 |
+| **`epochs_20_complets`** | 20 | 20 | **0,822** | **0,772** | **0,842** | **0,666** | 4 min 00 |
+
+**Durée d'entraînement (`epochs_20_complets`).** Ce run est identique à `lr_faible` pendant
+les 6 premières epochs (même graine, mêmes réglages : les runs sont reproductibles), puis
+continue sans early stopping :
+
+| Epoch | 1 | 3 | 6 | 10 | 11 | 13 | 16 | 18 | 20 |
+|---|---|---|---|---|---|---|---|---|---|
+| mAP@0.5:0.95 | 0,655 | 0,607 | 0,626 | 0,645 | 0,636 | 0,651 | 0,660 | 0,661 | **0,666** |
+
+Après le creux du warmup, la mAP remonte régulièrement et dépasse l'epoch 1 à partir de
+l'epoch 16. Deux mécanismes y contribuent : le learning rate diminue linéairement jusqu'à
+la fin (`lrf=0.01`), et l'augmentation mosaic est désactivée pendant les 10 dernières epochs
+(`close_mosaic=10`), ce qui rapproche les images d'entraînement des images de validation
+(légère baisse à l'epoch 11, au changement, puis hausse). La courbe monte encore à
+l'epoch 20 : un entraînement plus long pourrait encore gagner un peu. **L'early stopping
+avec une patience de 5 était donc trop strict** : il arrêtait `lr_faible` à 0,626 alors que
+le même entraînement atteint 0,666.
+
+**Gel du backbone (`freeze_backbone`).** Geler les 10 premières couches donne le même score
+que le fine-tuning complet sur la même durée (0,658 contre 0,655 ; l'écart est dans la marge
+du hasard). Les features du backbone appris sur COCO conviennent déjà à VOC, ce qui est
+cohérent avec le cours : quand les domaines source et cible sont proches, la feature
+extraction suffit (Cours 3 p.95 et p.98). Le gel réduit la mémoire GPU (2,5 Go contre
+3,5 Go) mais presque pas la durée d'une epoch, limitée ici par le chargement des images.
+
+**Taille d'image (`imgsz_416`).** C'est la seule variante qui fait moins bien que le modèle
+de départ (0,622). Les classes qui perdent le plus sont celles qui ont le plus de petits
+objets (analyse de la Personne 1) : bottle (0,475 → 0,389) et potted plant (0,352 → 0,291)
+par rapport à `lr_faible`. Avec des images plus petites, les feature maps sont plus petites
+et les petits objets n'y occupent plus que quelques pixels (Cours 3 p.48-49). En contrepartie,
+l'entraînement est 30 % plus rapide et l'inférence passe de 2,7 à 1,8 ms par image
+(mesure d'Ultralytics en validation, lots de 16) : c'est un compromis précision / vitesse.
+
+**Augmentations (`sans_augmentation`).** Le meilleur score (epoch 1) est le même qu'avec
+augmentations, mais la suite est différente : les losses d'entraînement baissent nettement
+plus vite (`cls_loss` 0,86 → 0,66 en 6 epochs, contre 1,06 → 1,03 avec augmentations)
+tandis que la mAP de validation baisse (0,657 → 0,605). Le modèle s'améliore sur les images
+d'entraînement et se dégrade sur les autres : c'est la signature du surapprentissage
+(Cours 3 p.107). Les augmentations jouent donc un rôle de régularisation : elles montrent
+au modèle les objets à d'autres positions, tailles et couleurs (invariance, Cours 3
+p.12-13 ; Fiche 04).
 
 ### Meilleur modèle
 
-_Provisoire : `lr_faible`, epoch 1 (mAP@0.5:0.95 = 0,655 en validation). Choix définitif
-après l'étape 2 (`compare_runs.py`), copié dans `weights/best.pt`._
+**`epochs_20_complets`, epoch 20** : précision 0,822, rappel 0,772, mAP@0.5 = 0,842,
+mAP@0.5:0.95 = 0,666 en validation, soit **+3,5 points de mAP@0.5 et +3,2 points de
+mAP@0.5:0.95** par rapport au modèle sans fine-tuning. Ses poids sont copiés dans
+`weights/best.pt` par `compare_runs.py` et servent à l'évaluation finale sur le test et à
+la démo (Personne 4).
+
+Par classe (AP@0.5:0.95 en validation, avant → après), 17 classes sur 20 progressent ; les
+gains les plus forts concernent des classes faibles au départ :
+
+| Classe | Avant | Après | Écart |
+|---|---|---|---|
+| car | 0,646 | 0,744 | +9,8 |
+| boat | 0,436 | 0,522 | +8,6 |
+| dining table | 0,507 | 0,593 | +8,6 |
+| tv | 0,601 | 0,678 | +7,7 |
+| bicycle | 0,660 | 0,716 | +5,6 |
+| chair | 0,492 | 0,545 | +5,3 |
+| potted plant | 0,328 | 0,374 | +4,6 |
+
+Trois classes reculent très légèrement : cat (−0,9), dog (−0,7) et bus (−0,4).
 
 ### Limites
 
-- **Le meilleur modèle de `lr_faible` n'a fait qu'une epoch de fine-tuning.** Une patience
-  de 5 est courte par rapport au creux du warmup ; l'expérience `epochs_20_complets` vérifie
-  si un entraînement plus long fait mieux.
+- **Seule la durée d'entraînement a été testée sur 20 epochs complètes.** Les autres
+  variantes ont été arrêtées à l'epoch 6 par l'early stopping, et elles sont comparées à
+  `lr_faible` dans les mêmes conditions. Une variante comme `freeze_backbone` aurait
+  peut-être aussi progressé sur 20 epochs ; faute de temps de calcul, ce n'a pas été testé.
+- **La mAP monte encore à l'epoch 20** : un entraînement plus long pourrait améliorer
+  légèrement le modèle.
 - **Le gain en validation est légèrement optimiste** : le meilleur epoch est choisi sur la
   validation puis mesuré sur elle. Seule l'évaluation sur le test (Personne 4) mesure le
   gain réel.
