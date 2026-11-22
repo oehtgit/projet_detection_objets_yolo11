@@ -42,22 +42,31 @@ BASE = {
 }
 
 # Une expérience = les paramètres qui changent par rapport à BASE.
+# Étape 1 : effet du learning rate (baseline vs lr_faible).
+# Résultat : lr0 = 0.01 détruit les poids préentraînés (mAP50-95 val 0.634 -> 0.17),
+# lr0 = 0.001 les améliore (0.655). Les expériences suivantes partent donc de
+# lr0 = 0.001 (LR_FAIBLE) et ne changent qu'un seul autre paramètre.
+LR_FAIBLE = {"lr0": 0.001}
+
 EXPERIMENTS = {
     "baseline": {},
-    # Stratégie 1 du cours (feature extraction) : backbone (10 premières couches) gelé,
-    # seuls le neck et la tête sont entraînés (Cours 3, p.95 et p.98 ; Fiche 09).
-    "freeze_backbone": {"freeze": 10},
     # Learning rate 10x plus faible : "règle d'or" du fine-tuning (Cours 3, p.97 ;
     # Cours 2, p.94).
-    "lr_faible": {"lr0": 0.001},
+    "lr_faible": LR_FAIBLE,
+    # Étape 2 : à partir de lr_faible, un seul changement à chaque fois.
+    # Stratégie 1 du cours (feature extraction) : backbone (10 premières couches) gelé,
+    # seuls le neck et la tête sont entraînés (Cours 3, p.95 et p.98 ; Fiche 09).
+    "freeze_backbone": {**LR_FAIBLE, "freeze": 10},
     # Images plus petites : feature maps plus petites (Cours 3, p.48-49), donc plus rapide
     # mais petits objets moins bien vus.
-    "imgsz_416": {"imgsz": 416},
-    # Moins d'epochs : effet de la durée d'entraînement (Cours 3, p.105-107).
-    "epochs_10": {"epochs": 10},
+    "imgsz_416": {**LR_FAIBLE, "imgsz": 416},
+    # Durée d'entraînement : les 20 epochs sont faites sans early stopping, pour voir si
+    # un entraînement plus long dépasse le meilleur epoch de lr_faible (Cours 3, p.105-107).
+    "epochs_20_complets": {**LR_FAIBLE, "patience": 0},
     # Sans augmentation de données : mesure l'apport des augmentations (Fiche 04 ;
     # invariance par translation, Cours 3 p.12-13 et p.27).
     "sans_augmentation": {
+        **LR_FAIBLE,
         "mosaic": 0.0,
         "fliplr": 0.0,
         "translate": 0.0,

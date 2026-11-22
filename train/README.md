@@ -25,7 +25,7 @@ python train/train.py --data coco8.yaml --epochs 3
 # toutes les expériences sur le jeu de données du projet
 python train/train.py --data data/data.yaml
 # ou seulement certaines
-python train/train.py --data data/data.yaml --exp baseline freeze_backbone
+python train/train.py --data data/data.yaml --exp freeze_backbone imgsz_416
 # comparaison des runs
 python train/compare_runs.py
 ```
@@ -34,18 +34,30 @@ Si la mémoire GPU est insuffisante : `--batch 8`.
 
 ## Méthode
 
-On part des poids `yolo11n.pt` préentraînés sur COCO. Ultralytics remplace la tête de
-détection pour l'adapter au nombre de classes du `data.yaml` (transfer learning, Cours 3
-p.90-100). Chaque expérience ne change **qu'un seul** hyperparamètre par rapport à la
-référence :
+On part des poids `yolo11n.pt` préentraînés sur COCO. Les 20 classes VOC portent leur nom
+COCO : Ultralytics adapte la tête de détection à 20 classes en reprenant les poids COCO de
+ces classes (« Remapped 20/20 cls head rows by class name ») ; le modèle de départ vaut donc
+la baseline de la Personne 2 (mAP50-95 = 0,634 sur la validation). C'est du transfer
+learning (Cours 3 p.90-100). Chaque expérience ne change **qu'un seul** hyperparamètre, en
+deux étapes :
+
+**Étape 1 : learning rate**, par rapport à la configuration de référence.
 
 | Expérience | Changement | Justification |
 |---|---|---|
 | `baseline` | SGD, lr0 = 0.01, 20 epochs, imgsz 640, batch 16, aucune couche gelée, patience 5, seed 0 | Fine-tuning complet (stratégie 2, Cours 3 p.96) |
-| `freeze_backbone` | `freeze=10` | Backbone gelé, seuls neck et tête entraînés (stratégie 1, Cours 3 p.95 et p.98 ; Fiche 09) |
 | `lr_faible` | `lr0=0.001` | Learning rate faible lors du fine-tuning (Cours 3 p.97 ; Cours 2 p.94) |
+
+`lr0=0.01` dégrade fortement le modèle préentraîné, `lr0=0.001` l'améliore : l'étape 2 part
+donc de `lr_faible`.
+
+**Étape 2 : autres hyperparamètres**, par rapport à `lr_faible`.
+
+| Expérience | Changement | Justification |
+|---|---|---|
+| `freeze_backbone` | `freeze=10` | Backbone gelé, seuls neck et tête entraînés (stratégie 1, Cours 3 p.95 et p.98 ; Fiche 09) |
 | `imgsz_416` | `imgsz=416` | Compromis précision / vitesse (taille des feature maps, Cours 3 p.48-49) |
-| `epochs_10` | `epochs=10` | Effet de la durée d'entraînement (Cours 3 p.105-107) |
+| `epochs_20_complets` | `patience=0` (les 20 epochs sans early stopping) | Effet de la durée d'entraînement (Cours 3 p.105-107) |
 | `sans_augmentation` | mosaic, flip, translation, échelle et couleurs désactivés | Apport des augmentations (Fiche 04 ; invariance, Cours 3 p.12-13) |
 
 Choix techniques :
