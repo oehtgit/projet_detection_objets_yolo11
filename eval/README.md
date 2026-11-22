@@ -76,6 +76,15 @@ existent déjà. Pour éviter de mélanger des versions de données, utiliser un
 emplacement de dataset neuf lorsque le dataset change. Vérifier également que
 le split demandé est présent : le script se rabat sur `val` s'il est absent.
 
+## Reproduire sur Colab
+
+Ouvrir `eval/baseline_colab.ipynb` dans Google Colab, activer un GPU et exécuter
+les cellules dans l'ordre. Le notebook récupère le dépôt et l'archive de données,
+vérifie leurs conditions d'utilisation et évalue le split test à 640 pixels.
+Il permet de télécharger les métriques et les conditions de mesure. Le runtime
+Colab est temporaire ; les scores et la vitesse obtenus dépendent de son matériel
+et des versions installées.
+
 ## Comparaison après fine-tuning
 
 Lorsque `train/weights/best.pt` sera disponible, la personne 4 pourra l'évaluer
