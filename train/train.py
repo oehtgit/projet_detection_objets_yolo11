@@ -26,7 +26,7 @@ RUNS_DIR = Path(__file__).resolve().parent / "runs"
 
 # Configuration de référence.
 BASE = {
-    "epochs": 50,
+    "epochs": 20,
     "imgsz": 640,
     "batch": 16,
     # Optimiseur fixé explicitement : avec optimizer="auto" (défaut), Ultralytics choisit
@@ -35,8 +35,8 @@ BASE = {
     "lr0": 0.01,
     # Stratégie 2 du cours (fine-tuning) : aucune couche gelée (Cours 3, p.96).
     "freeze": None,
-    # Early stopping : arrêt si la validation ne s'améliore plus pendant 15 epochs (Fiche 07).
-    "patience": 15,
+    # Early stopping : arrêt si la validation ne s'améliore plus pendant 5 epochs (Fiche 07).
+    "patience": 5,
     # Graine fixe pour que les runs soient comparables et reproductibles.
     "seed": 0,
 }
@@ -54,7 +54,7 @@ EXPERIMENTS = {
     # mais petits objets moins bien vus.
     "imgsz_416": {"imgsz": 416},
     # Moins d'epochs : effet de la durée d'entraînement (Cours 3, p.105-107).
-    "epochs_20": {"epochs": 20},
+    "epochs_10": {"epochs": 10},
     # Sans augmentation de données : mesure l'apport des augmentations (Fiche 04 ;
     # invariance par translation, Cours 3 p.12-13 et p.27).
     "sans_augmentation": {

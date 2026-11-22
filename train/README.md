@@ -41,11 +41,11 @@ référence :
 
 | Expérience | Changement | Justification |
 |---|---|---|
-| `baseline` | SGD, lr0 = 0.01, 50 epochs, imgsz 640, batch 16, aucune couche gelée, patience 15, seed 0 | Fine-tuning complet (stratégie 2, Cours 3 p.96) |
+| `baseline` | SGD, lr0 = 0.01, 20 epochs, imgsz 640, batch 16, aucune couche gelée, patience 5, seed 0 | Fine-tuning complet (stratégie 2, Cours 3 p.96) |
 | `freeze_backbone` | `freeze=10` | Backbone gelé, seuls neck et tête entraînés (stratégie 1, Cours 3 p.95 et p.98 ; Fiche 09) |
 | `lr_faible` | `lr0=0.001` | Learning rate faible lors du fine-tuning (Cours 3 p.97 ; Cours 2 p.94) |
 | `imgsz_416` | `imgsz=416` | Compromis précision / vitesse (taille des feature maps, Cours 3 p.48-49) |
-| `epochs_20` | `epochs=20` | Effet de la durée d'entraînement (Cours 3 p.105-107) |
+| `epochs_10` | `epochs=10` | Effet de la durée d'entraînement (Cours 3 p.105-107) |
 | `sans_augmentation` | mosaic, flip, translation, échelle et couleurs désactivés | Apport des augmentations (Fiche 04 ; invariance, Cours 3 p.12-13) |
 
 Choix techniques :
@@ -55,7 +55,7 @@ Choix techniques :
   l'évaluation finale (Cours 3 p.104) ;
 - le meilleur epoch de chaque run est celui qu'Ultralytics retient pour `best.pt`
   (critère 0.1 × mAP@0.5 + 0.9 × mAP@0.5:0.95) ;
-- `patience=15` arrête l'entraînement si la validation ne s'améliore plus (early stopping,
+- 20 epochs suffisent car les poids COCO connaissent déjà les 20 classes VOC ; `patience=5` arrête l'entraînement si la validation ne s'améliore plus (early stopping,
   Fiche 07) ;
 - la courbe des losses entraînement / validation du meilleur run permet de détecter un
   éventuel surapprentissage (Cours 3 p.107).
