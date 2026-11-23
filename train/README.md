@@ -1,4 +1,4 @@
-# Entraînement et fine-tuning (Personne 3)
+# Entraînement et fine-tuning (CRETEL Théo)
 
 ## Objectif
 
