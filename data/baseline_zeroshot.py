@@ -67,7 +67,7 @@ def remap_split(data: dict, mapping: dict, coco_names: dict, out_root: Path, spl
     rel_dirs = []
     for vdir in val_dirs:
         vdir = Path(vdir)
-        rel = vdir.relative_to(Path(data["path"]))          # ex: images/test2007
+        rel = vdir.relative_to(Path(data["path"]))          # ex: images/test
         lbl_src = Path(str(vdir).replace(f"{os.sep}images{os.sep}", f"{os.sep}labels{os.sep}"))
         img_dst = out_root / rel
         lbl_dst = Path(str(img_dst).replace(f"{os.sep}images{os.sep}", f"{os.sep}labels{os.sep}"))
@@ -99,12 +99,6 @@ def remap_split(data: dict, mapping: dict, coco_names: dict, out_root: Path, spl
     return yaml_path
 
 
-def ensure_voc(data_arg: str):
-    """Ancien fichier VOC_split.yaml : télécharge VOC avant (inutile avec data/data.yaml)."""
-    if Path(data_arg).name == "VOC_split.yaml":
-        check_det_dataset("VOC.yaml")
-
-
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--model", default="yolo11n.pt")
@@ -118,8 +112,7 @@ def main():
 
     model = YOLO(args.model)
     coco_names = model.names                       # 80 classes COCO
-    ensure_voc(args.data)
-    data = check_det_dataset(args.data)            # télécharge VOC si absent
+    data = check_det_dataset(args.data)            # lit data.yaml (données préparées par prepare_data.py)
     voc_names = data["names"]
     mapping = build_mapping(voc_names, coco_names)
     print("[mapping VOC->COCO]", {voc_names[k]: coco_names[v] for k, v in mapping.items()})
@@ -146,7 +139,7 @@ def main():
         "speed_ms": metrics.speed, "per_class": per_class,
     }
     Path(args.out).mkdir(parents=True, exist_ok=True)
-    out_file = Path(args.out) / "baseline_metrics.json"
+    out_file = Path(args.out) / "baseline_zeroshot.json"
     out_file.write_text(json.dumps(res, indent=2, ensure_ascii=False))
     print(f"\nmAP50 = {res['mAP50']:.4f} | mAP50-95 = {res['mAP50-95']:.4f} -> {out_file}")
 

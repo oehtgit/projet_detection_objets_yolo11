@@ -154,7 +154,12 @@ def build_yolo(raw: Path, out: Path, move: bool = True, mode: str = "aleatoire",
 
 
 # ----- Étape 5 : fichier data.yaml
-def write_yaml(out: Path, yaml_path: Path):
+def write_yaml(out: Path, yaml_path: Path, mode: str = "aleatoire", ratios=(0.7, 0.1, 0.2), seed: int = 0):
+    # le commentaire du fichier décrit le découpage vraiment utilisé
+    if mode == "officiel":
+        desc = "découpage officiel VOC (test = VOC2007 test)"
+    else:
+        desc = "découpage " + "/".join(str(round(100 * r)) for r in ratios) + f" stratifié (graine {seed})"
     cfg = {
         "path": str(out),
         "train": "images/train",
@@ -165,7 +170,7 @@ def write_yaml(out: Path, yaml_path: Path):
     yaml_path.parent.mkdir(parents=True, exist_ok=True)
     yaml_path.write_text(
         "# Pascal VOC au format YOLO, généré par data/prepare_data.py\n"
-        "# découpage 70/10/20 stratifié (graine 0)\n"
+        f"# {desc}\n"
         + yaml.safe_dump(cfg, sort_keys=False, allow_unicode=True))
     print(f"[5] configuration écrite : {yaml_path}")
 
@@ -209,7 +214,7 @@ def main():
         build_yolo(raw, out, move=not a.keep_raw, mode=a.split, ratios=tuple(a.ratios), seed=a.seed)
         if not a.keep_raw:
             shutil.rmtree(raw, ignore_errors=True)
-    write_yaml(out, Path(a.yaml))
+    write_yaml(out, Path(a.yaml), a.split, tuple(a.ratios), a.seed)
 
     if a.zip:
         z = out.parent / "VOC_pret"

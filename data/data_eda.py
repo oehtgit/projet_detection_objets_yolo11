@@ -16,7 +16,6 @@ Exemple :
 """
 import argparse
 import json
-import xml.etree.ElementTree as ET
 from collections import Counter
 from pathlib import Path
 
@@ -54,23 +53,6 @@ def read_split(root: Path, sub: str, names: dict) -> pd.DataFrame:
             rows.append({"split_dir": sub, "image": img.stem, "W": W, "H": H, "cls": c,
                          "w_px": w * W, "h_px": h * H})
     return pd.DataFrame(rows), problems
-
-
-def count_difficult(root: Path) -> dict:
-    """Compte les objets "difficult" dans les XML d'origine (s'ils sont encore là)."""
-    out = {}
-    for year in ("2007", "2012"):
-        ann = root / "images" / "VOCdevkit" / f"VOC{year}" / "Annotations"
-        if not ann.exists():
-            continue
-        tot = diff = 0
-        for f in ann.glob("*.xml"):
-            for o in ET.parse(f).getroot().iter("object"):
-                tot += 1
-                d = o.find("difficult")
-                diff += int(d is not None and d.text.strip() == "1")
-        out[f"VOC{year}"] = {"objets": tot, "difficult": diff}
-    return out
 
 
 def main():
@@ -143,7 +125,6 @@ def main():
 
     res = {
         "integrite": dict(problems) or "aucun problème détecté",
-        "difficult_ecartes": count_difficult(root),
         "tailles_images_px": {"largeur_mediane": int(imgs["W"].median()), "hauteur_mediane": int(imgs["H"].median()),
                               "largeur_max": int(imgs["W"].max()), "hauteur_max": int(imgs["H"].max())},
         "desequilibre_train": {"classe_max": cls_tab.index[0], "n_max": int(cls_tab["train"].iloc[0]),
