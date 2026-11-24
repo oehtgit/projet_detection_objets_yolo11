@@ -18,6 +18,8 @@ du modèle fine-tuné (`train/weights/best.pt`), dans les mêmes conditions, pui
 | `results/figures/exemples/` | Images du test, modèle d'origine à gauche et fine-tuné à droite (`demo/demo.py --compare`) |
 | `evaluation_colab.ipynb` | Notebook Colab : données, évaluation, démo |
 | `results/val/<modèle>/` | Sorties d'Ultralytics : courbes PR, matrice de confusion |
+| `baseline_colab.ipynb` | Notebook Colab de Matteo : évaluation du modèle préentraîné (sans fine-tuning) sur la validation et le test |
+| `resultats/val/` et `resultats/test/` | `baseline_metrics.json` produit par ce notebook (validation : mAP@0.5 = 0,807, mAP@0.5:0.95 = 0,634 ; test : 0,809 et 0,626, identiques à la baseline de `results/`) |
 
 ## Lancement (Google Colab, GPU T4)
 

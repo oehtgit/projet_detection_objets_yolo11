@@ -1,7 +1,7 @@
 # Détection d'objets en temps réel avec YOLO
 
 Projet 4 du module d'apprentissage profond (M2, UHA), groupe 4 : Amina Menacer,
-Matteo Prades, Théo Crétel, Lounis Mesrour.
+Matteo Prades, Théo Crétel, Mesrour Lounis.
 
 ## Description
 
@@ -129,7 +129,7 @@ Détails : [data/README.md](data/README.md).
 - 17 classes sur 20 progressent, surtout les plus faibles au départ (dining table +10,7
   points, chair +8,0, car +8,0). Le modèle connaissait déjà ces objets : il s'adapte surtout
   aux conventions d'annotation de Pascal VOC ;
-- la vitesse ne change pas (85 FPS contre 76) : seule la dernière couche passe de 80 à 20
+- la vitesse ne baisse pas (85 FPS après, 76 avant) : seule la dernière couche passe de 80 à 20
   classes. Sur GPU, réduire la taille d'image ne fait pas gagner de vitesse mais fait perdre
   de la précision : on garde 640 px.
 
@@ -144,4 +144,4 @@ comparables directement à ceux des articles ; FPS propres au GPU utilisé.
 | **Amina Menacer** | Données et annotation | Choix et justification de Pascal VOC ; téléchargement, conversion au format YOLO, découpage stratifié 70/10/20 ; contrôle qualité ; analyse exploratoire et figures ; `data.yaml` ; baseline zero-shot sur le test ; partie « Données » |
 | **Matteo Prades** | Modèle préentraîné et baseline | Prise en main de YOLO11n ; évaluation du modèle préentraîné sur la validation et le test (référence utilisée pour les comparaisons d'entraînement) ; mesure de vitesse sur GPU ; notebook Colab de la baseline ; partie « Modèle et baseline » |
 | **Théo Crétel** | Fine-tuning et optimisation | Code d'entraînement et de comparaison (`train/`) ; six expériences de fine-tuning (learning rate, gel du backbone, taille d'image, augmentations, durée) ; suivi des courbes de loss et de mAP ; choix et sauvegarde des meilleurs poids ; partie « Entraînement et fine-tuning » |
-| **Lounis Mesrour** | Évaluation, démo et intégration | Évaluation finale sur le test (mAP, précision, rappel) ; mesure de la vitesse (ms/image, FPS) ; comparaison avant / après (tableaux, figures, exemples) ; démo sur images, vidéo et webcam ; coordination du rapport et de la présentation |
+| **Mesrour Lounis** | Évaluation, démo et intégration | Évaluation finale sur le test (mAP, précision, rappel) ; mesure de la vitesse (ms/image, FPS) ; comparaison avant / après (tableaux, figures, exemples) ; démo sur images, vidéo et webcam ; coordination du rapport et de la présentation |
