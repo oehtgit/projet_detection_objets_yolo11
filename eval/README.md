@@ -1,4 +1,4 @@
-# Évaluation du modèle préentraîné (Personne 2)
+# Évaluation du modèle préentraîné (Mattéo PRADES)
 
 ## Protocole
 
