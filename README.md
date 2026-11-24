@@ -31,6 +31,7 @@ Chaque dossier a son propre README, avec le détail de la méthode et des résul
 | `train/` | Fine-tuning, étude des hyperparamètres, meilleurs poids `train/weights/best.pt` | [train/README.md](train/README.md) |
 | `eval/` | Évaluation finale sur le test, vitesse, comparaison avant / après | [eval/README.md](eval/README.md) |
 | `demo/` | Démo sur images, vidéo et webcam, avec comparaison côte à côte | [demo/README.md](demo/README.md) |
+| `presentation/` | Présentation de la soutenance (PDF et PowerPoint) | [presentation_YOLO11n.pdf](presentation/presentation_YOLO11n.pdf) |
 
 ## Dépendances
 
