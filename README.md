@@ -3,13 +3,25 @@
 Projet 4 du module d'apprentissage profond (M2, UHA), groupe 4 : Amina Menacer,
 Matteo Prades, Théo Crétel, Mesrour Lounis.
 
-## Description
+## Description et objectifs
 
 Nous partons de **YOLO11n préentraîné sur COCO** (80 classes) et l'adaptons par
-**fine-tuning** au jeu **Pascal VOC** (20 classes). Nous évaluons la précision (mAP@0.5,
-mAP@0.5:0.95, précision, rappel) et la vitesse d'inférence (ms/image, FPS), comparons le
-modèle avant et après adaptation, et testons le système sur des images, des vidéos et la
-webcam.
+**fine-tuning** au jeu **Pascal VOC** (20 classes). Objectifs :
+
+1. adapter un détecteur préentraîné à un nouveau jeu de données par fine-tuning ;
+2. évaluer sa précision (mAP@0.5, mAP@0.5:0.95, précision, rappel) et sa vitesse
+   d'inférence (ms/image, FPS) ;
+3. comparer les résultats avant et après adaptation ;
+4. tester le système sur des images, des vidéos et la webcam.
+
+**Choix du modèle.** YOLO11n est le modèle recommandé par le sujet. C'est la plus petite
+version de YOLO11 (2,6 millions de paramètres) : rapide, donc adaptée au temps réel, et
+entraînable sur le GPU gratuit de Google Colab.
+
+**Choix des données.** Pascal VOC fait partie des jeux proposés. Ses 20 classes existent
+toutes dans COCO, ce qui permet d'évaluer le modèle avant adaptation sur exactement les
+mêmes classes, donc de mesurer précisément l'apport du fine-tuning. Sa taille (21 503
+images) permet un entraînement en environ 1 h 20 sur Colab.
 
 Résultat principal, sur le jeu de test (4 300 images jamais utilisées pour l'entraînement) :
 
@@ -83,9 +95,12 @@ Les poids fine-tunés sont fournis dans `train/weights/best.pt` : les étapes 5 
 
 Détails : [data/README.md](data/README.md).
 
-- **Pascal VOC 2007 + 2012** : 21 503 images annotées, 20 classes (personnes, véhicules,
-  animaux, objets d'intérieur). Les 20 classes existent toutes dans COCO, ce qui permet de
-  mesurer le modèle avant adaptation.
+- **Provenance** : [Pascal VOC](http://host.robots.ox.ac.uk/pascal/VOC/), éditions 2007 et
+  2012 (archives officielles `VOCtrainval_06-Nov-2007`, `VOCtest_06-Nov-2007` et
+  `VOCtrainval_11-May-2012`, téléchargées depuis le miroir d'Ultralytics par
+  `data/prepare_data.py`).
+- **Contenu** : 21 503 images annotées pour la détection, 20 classes (personnes, véhicules,
+  animaux, objets d'intérieur).
 - **Conversion** des annotations XML au format YOLO (`classe x_centre y_centre largeur
   hauteur`, normalisés), objets « difficult » écartés. Les classes portent leur nom COCO
   (`aeroplane` → `airplane`…).
